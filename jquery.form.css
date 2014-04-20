@@ -1,0 +1,178 @@
+﻿input.date{
+		width: 180px;
+		border: 1px solid #ABABAB;
+		box-shadow: 2px 2px 3px #EDEDED inset;
+		background:url("images/bg.png") no-repeat scroll 100% 95% #FFFFFF;
+	}
+input.focus{
+		color: #000;
+		border-color: #aaddd6;
+	}
+	
+input.placeholder {
+	font-style: italic;
+	color: #B2B2B2;
+}
+
+/**-----------------------------------------------------------------**/
+.c-list {
+	overflow:auto;
+	position: absolute;
+	z-index: 9999;
+	display: none;
+	border: 1px solid #CCCCCC;
+	padding-bottom: 5px;
+	background-color: white;
+}
+
+/**-------------------------- 日期相关CSS --------------------------**/
+.date-picker td,.date-picker th {
+	font-size: 12px;
+	font-family: Arial,Microsoft Yahei,"微软雅黑",serif;
+}
+
+.date-picker td,date-picker th {
+	cursor: pointer;
+	text-align: center;
+}
+
+.date-picker {
+	padding: 5px 0px;
+	border: 1px solid #CCCCCC;
+}
+
+.date-picker .view-top {
+	margin-bottom: 3px;
+}
+
+.date-picker .cell-selected-month,.date-picker .cell-selected-year {
+	font-size: 13px;
+	font-weight: bold;
+}
+
+.date-picker .cell {
+	line-height: 22px;
+	height: 22px;
+}
+
+.date-picker .cell-icon {
+	display: block;
+	cursor: pointer;
+	height: 16px;
+	width: 16px;
+	background-image: url("images/icon_date.gif");
+	background-repeat: no-repeat;
+	background-color: transparent;
+}
+
+.date-picker .icon-prev-year {
+	background-position: 0 2px;
+}
+
+.date-picker .icon-prev-month {
+	background-position: -16px 2px;
+}
+
+.date-picker .icon-next-year {
+	background-position: -48px 2px;
+}
+
+.date-picker .icon-next-month {
+	background-position: -32px 2px;
+}
+
+.date-picker .row-week th {
+	padding: 5px 0px;
+	background-color: #7BACD2;
+}
+
+.date-picker .cell-week {
+	cursor: default;
+	font-weight: bold;
+}
+
+.date-picker .cell-date {
+	
+}
+
+.date-picker .cell-month {
+	padding: 2px 0px;
+	width: 25%;
+}
+
+.date-picker .cell-year {
+	padding: 2px 0px;
+	width: 25%;
+}
+
+.date-picker .cell-prev-month {
+	color: #6A6AFF;
+}
+
+.date-picker .cell-next-month {
+	color: #6A6AFF;
+}
+
+.date-picker .cell-current {
+	background-color: orange;
+}
+
+.date-picker .cell-hover {
+	background-color: #A9E4E9;
+}
+
+.date-picker .cell-selected {
+	color: white;
+	background-color: #7BACD2;
+}
+
+.date-picker .cell-disabled {
+	cursor: default;
+	color: #AAAAAA;
+	background-color: white;
+}
+
+.date-picker .cell-next-10,.date-picker .cell-prev-10 {
+	font-weight: bold;
+}
+
+
+input.multicombo{
+	width: 180px;
+	border: 1px solid #ABABAB;
+	box-shadow: 2px 2px 3px #EDEDED inset;
+	background:url("images/bg.png") no-repeat scroll 100% 5% #FFFFFF;
+}
+
+.c-list {	
+	padding:0;
+	magin:0;
+	position: absolute;
+	z-index: 9999;
+	display: none;
+	border: 1px solid #CCCCCC;
+	padding-bottom: 5px;
+	background-color: white;
+}
+
+.c-list *{
+	padding:0px;
+	margin:0px;
+}
+
+.c-list ul{
+	 list-style: none outside none;
+}
+
+.c-list .item {
+	font-size: 12px;
+	font-family: Arial,Microsoft Yahei,"微软雅黑",serif;
+	cursor: pointer;
+	padding: 2px 0px 2px 5px;
+	border-bottom: 1px dashed #CCCCCC;
+}
+
+.c-list .item-selected,.c-list .item-hover {
+	background: #c8e3fc;
+}
+
