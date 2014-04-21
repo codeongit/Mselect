@@ -1,7 +1,8 @@
 //要注意循环体内部的程序段的性能（尽量使用原生操作，采用性能较高的方法实现）
-//要注意JQuery的隐式循环
-//要注意 用局部变量保留对象的属性、外部变量的值，从而避免属性查找的损耗
-
+//要注意JQuery的隐式循环,容易导致重复的使用循环操作，有多层循环（多于1层）时就要考虑优化
+//要注意 用局部变量保留对象的属性、外部变量的值、选择器取得的对象，从而避免多次查找的损耗
+//最后的手段，使用延迟加载“提高”使用性
+//编程时对象的生命周期要时刻注意
 (function ($) {
 
   "use strict ";
@@ -9,8 +10,8 @@
 var MultiSelect = function(element, options) {
     this.options = options;
     this.$element = $(element);
-    this.selectablerowcache = null;
-    this.selectionrowcache = null;
+    this.selectablerowcache = [];
+    this.selectionrowcache = [];
     this.$container = $('<div>', {
         'class': 'ms-container'
     });
@@ -47,11 +48,13 @@ var MultiSelect = function(element, options) {
         'class': 'ms-selection'
     });
     this.$selectable = $('<select>', {
+        'id': 'ms-selectable',
         'class': 'ms-list',
         'tabindex': '-1',
         'multiple': 'multiple'
     });
     this.$selection = $('<select>', {
+        'id': 'ms-selection',
         'class': 'ms-list',
         'tabindex': '-1',
         'multiple': 'multiple'
@@ -64,7 +67,6 @@ MultiSelect.prototype = {
     init: function() {
         var that = this,
         ms = this.$element;
-     
         that.$input.insertBefore(ms);
         if (ms.next('.ms-container').length === 0) {
             ms.css({
@@ -75,10 +77,25 @@ MultiSelect.prototype = {
             that.$container.attr('id', 'ms-' + ms.attr('id'));
             that.generateLisFromOption();       
              //初始化输入框  这种方法还很慢
-             var text = that.$element.find('option:selected').map(function() {
-                 return jQuery(this).text();
-             }).get();
-             that.$input.attr('value',text.join(","));
+             // var text = that.$element.find('option:selected').map(function() {
+             //     return jQuery(this).text();
+             // }).get();
+            var elementOptions = ms[0].options;
+            var selectablerowcache =[];
+            var selectionrowcache =[];
+            var selectedText = [];
+            //反向遍历 检测值即第二个参数为固定值是可用
+            for (var i = elementOptions.length - 1; i >= 0; i--) {
+                if(elementOptions[i].selected){
+                    selectionrowcache.push(elementOptions[i]);
+                    selectedText.push(elementOptions[i].text);
+                }else{
+                    selectablerowcache.push(elementOptions[i]);
+                }
+            };
+            that.selectablerowcache =selectablerowcache;
+            that.selectionrowcache = selectionrowcache;
+            that.$input.attr('value',selectedText.join(","));
             
             that.$selectableContainer.append(that.$selectableHeader);
                 
@@ -102,12 +119,12 @@ MultiSelect.prototype = {
             that.$container.append(that.$removeButtonContainer);
             that.$container.append(that.$selectionContainer);
             that.$container.appendTo("body");
-            that.selectablerowcache=that.$element.find('option').not(':selected').map(function() {
-                return this;
-            });
-             that.selectionrowcache=that.$element.find('option').filter(':selected').map(function() {
-                 return this;
-             });
+            // that.selectablerowcache=that.$element.find('option').not(':selected').map(function() {
+            //     return this;
+            // });
+            //  that.selectionrowcache=that.$element.find('option').filter(':selected').map(function() {
+            //      return this;
+            //  });
             var val,timeout,selectiontimeout,testQuery=function (query, txt) {
                 for (var i = 0; i < query.length; i += 1) {
                     if (txt.indexOf(query[i]) === -1) {
@@ -180,7 +197,7 @@ MultiSelect.prototype = {
 
     'generateLisFromOption': function() {
         var that = this,
-        options = that.$element.get(0).options,
+        options = that.$element[0].options,
         selectableOptions = that.$selectable[0].options,
         selectedOptions = that.$selection[0].options;
                     //取属性操作应该放在循环外以提高性能
@@ -188,7 +205,7 @@ MultiSelect.prototype = {
                      var selectedIndex=0;
                      var selectableIndex=0;
         for (var i = 0; i < options.length; i++) {
-            var option = options[i]
+            var option = options[i];
             var anOption = document.createElement('option');
             anOption.text = option.text;
             anOption.value = option.value;
@@ -202,47 +219,52 @@ MultiSelect.prototype = {
 
     'select': function() {
         var that = this,
-        ms = that.$element,
-        values = that.$selectable.moveSelectionTo(that.$selection),
-        selected = ms.find('option').filter(function() {
-            return (jQuery.inArray(this.value, values) > -1);
-        }).prop('selected', true);
+        ms = that.$element;
 
-         //初始化输入框
-            var text = that.$element.find('option:selected').map(function() {
-                return jQuery(this).text();
-            }).get();
-            that.$input.attr('value',text.join(","));
-            that.selectablerowcache=that.$element.find('option').not(':selected').map(function() {
-                return this;
-            });
-            
-            that.selectionrowcache=that.$element.find('option').filter(':selected').map(function() {
-                return this;
-            });
+        var selectedValues = moveSelection('ms-selection','ms-selectable');
+            var selectablerowcache =[];
+            var selectionrowcache =[];
+            var selectedText = [];
+         var selected = ms.find('option').each(function(){
+            var value =this.value;
+            if(jQuery.inArray(value, selectedValues) > -1){
+                this.selected=true;
+            }
+            if (this.selected) {
+                selectionrowcache.push(this);
+                selectedText.push(this.text);
+            }else{
+                selectablerowcache.push(this);
+                };
+         });
+            that.selectablerowcache =selectablerowcache;
+            that.selectionrowcache = selectionrowcache;
+            that.$input.attr('value',selectedText.join(","));
+
     },
 
     'deselect': function() {
         var that = this,
         ms = that.$element,
-        values = that.$selection.moveSelectionTo(that.$selectable),
-        deselected = ms.find('option').filter(function() {
-            return (jQuery.inArray(this.value, values) > -1);
-        }).prop('selected', false);
-
-        //初始化输入框
-            var text = that.$element.find('option:selected').map(function() {
-                return jQuery(this).text();
-            }).get();
-            that.$input.attr('value',text.join(","));
-            
-            that.selectablerowcache=that.$element.find('option').not(':selected').map(function() {
-                return this;
-            });
-
-            that.selectionrowcache=that.$element.find('option').filter(':selected').map(function() {
-                return this;
-            });
+         selectedValues = moveSelection('ms-selectable','ms-selection'),
+             selectablerowcache =[],
+             selectionrowcache =[],
+             selectedText = [],
+          selected = ms.find('option').each(function(){
+            var value =this.value;
+            if(jQuery.inArray(value, selectedValues) > -1){
+                this.selected=false;
+            }
+            if (this.selected) {
+                selectionrowcache.push(this);
+                selectedText.push(this.text);
+            }else{
+                selectablerowcache.push(this);
+                };
+         });
+            that.selectablerowcache =selectablerowcache;
+            that.selectionrowcache = selectionrowcache;
+            that.$input.attr('value',selectedText.join(","));
     }
 };
 
@@ -283,12 +305,17 @@ $.fn.moveSelectionTo = function() {
     var dest = arguments[0];
     var values = [];
     this.each(function() {
-        for (var x = 0; x < this.options.length; x++) {
+        var optionsLength =  this.options.length;
+
+        var destOptionsLength =  dest[0].options.length;
+        for (var x = 0; x < optionsLength; x++) {
             var option = this.options[x];
             if (option.selected) {
                 values.push(option.value);
-                dest.addOption(option);
+                dest.addOption(option,destOptionsLength);
                 this.remove(x);
+                destOptionsLength++;
+                optionsLength--;
                 //$(this).triggerHandler('option-removed', option);
                 x--; // Move x back one so that we'll successfully check again to see if it's selected.
             }
@@ -301,12 +328,13 @@ $.fn.moveSelectionTo = function() {
 // usage $('nameofselectbox').addOption(optiontoadd);
 $.fn.addOption = function() {
     var option = arguments[0];
+    var index = arguments[1];
     this.each(function() {
         //had to alter code to this to make it work in IE
         var anOption = document.createElement('option');
         anOption.text = option.text;
         anOption.value = option.value;
-        this.options[this.options.length] = anOption;
+        this.options[index] = anOption;
         //$(this).triggerHandler('option-added', anOption);
         return false;
     });
@@ -320,9 +348,7 @@ $.fn.msSearch = function(val,timeout,testQuery,rowcache){
                             var query = val.toLowerCase().split(' '),
                       val_empty = (val.replace(' ', '').length === 0);
                     //jQuery empty和只写Options.length=0方法IE下显示有问题
-                    //
-                     var optionsLength=Options.length;
-                    for(var i=0;i<optionsLength;i++){
+                    for(var i=0;i<Options.length;i++){
                     that[0].remove(i);
                     }
                     Options.length =0;
@@ -338,5 +364,30 @@ $.fn.msSearch = function(val,timeout,testQuery,rowcache){
               }, 100);
 
 }
+function moveSelection(fromSelectionId,toSelectionId){
+        var fromSelection =document.getElementById(fromSelectionId);
+        var toSelection =document.getElementById(toSelectionId);
+        var fromSelectionOptions = fromSelection.getElementsByTagName('option');
+        var toSelectionOptions = toSelection.getElementsByTagName('option');
+        var toSelectionLentgh = toSelectionOptions.length;
+        var selectedValues =[];
+        var docfrag = document.createDocumentFragment();
+        for (var i = 0; i < toSelectionLentgh; i++) {
+            var option = toSelectionOptions[i];
+            if (option.selected) {
+                selectedValues.push(option.value);
+                //重新创建会快些
+         var anOption = document.createElement('option');
+        anOption.text = option.text;
+        anOption.value = option.value;
+                docfrag.appendChild(anOption);
+                toSelection.removeChild(option);
+                toSelectionLentgh--;
+                i--;
 
+            }
+        };
+fromSelection.appendChild(docfrag);
+return selectedValues;
+}
 }) (window.jQuery);
