@@ -1,8 +1,9 @@
 //要注意循环体内部的程序段的性能（尽量使用原生操作，采用性能较高的方法实现，但又要考虑浏览器的兼容性问题）
 //要注意JQuery的隐式循环,容易导致重复的使用循环操作，有多层循环（多于1层）时就要考虑优化
 //要注意 用局部变量保留对象的属性、外部变量的值、选择器取得的对象，从而避免多次查找的损耗
-//最后的手段，使用延迟加载“提高”使用性
+//把处理时间分布开来，使用延迟加载“提高”使用性,预处理操作等
 //编程时对象的生命周期要时刻注意
+//chrome->IE   测试顺序
 (function($) {
 
     "use strict ";
@@ -63,7 +64,6 @@
 
     MultiSelect.prototype = {
         constructor: MultiSelect,
-
         init: function() {
             var that = this,
                 ms = this.$element;
@@ -76,39 +76,12 @@
                 ms.attr('id', ms.attr('id') ? ms.attr('id') : Math.ceil(Math.random() * 1000) + 'multiselect');
                 that.$container.attr('id', 'ms-' + ms.attr('id'));
                 that.generateLisFromOption();
-                //初始化输入框  缓存选区的选项
-                var elementOptions = ms[0].options;
-                var selectablerowcache = [];
-                var selectionrowcache = [];
-                var selectedText = [];
-                for (var i = 0; i < elementOptions.length; i++) {
-                    if (elementOptions[i].selected) {
-                        selectionrowcache.push(elementOptions[i]);
-                        selectedText.push(elementOptions[i].text);
-                    } else {
-                        selectablerowcache.push(elementOptions[i]);
-                    }
-                };
 
-                that.selectablerowcache = selectablerowcache;
-                that.selectionrowcache = selectionrowcache;
-                that.$input.attr('value', selectedText.join(","));
 
                 that.$selectableContainer.append(that.$selectableHeader);
-
                 that.$selectableContainer.append(that.$selectable);
-                if (that.options.selectableFooter) {
-                    that.$selectableContainer.append(that.options.selectableFooter);
-                }
-
-
                 that.$selectionContainer.append(that.$selectionHeader);
-
                 that.$selectionContainer.append(that.$selection);
-                if (that.options.selectionFooter) {
-                    that.$selectionContainer.append(that.options.selectionFooter);
-                }
-
                 that.$container.append(that.$selectableContainer);
                 that.$insertButtonContainer.append(that.$insertButton);
                 that.$removeButtonContainer.append(that.$removeButton);
@@ -159,7 +132,6 @@
                 that.$input.on('click',
                     function() {
                         // 应该改为添加到body标签上后再定位 
-
                         //关的时候有闪烁   container.slideToggle(300);
                         var offset = that.$input.offset();
                         that.$container.css("display", "block").css({
@@ -175,6 +147,29 @@
                 that.$selection.dblclick(function() {
                     that.deselect();
                 });
+                //级联选中相应的多选框
+                that.$selectable.change(function() {
+                    var selectableOptions = that.$selectable[0].options;
+                    var msOptions = ms[0].options;
+                    for (var i = 0, len = selectableOptions.length; i < len; i++) {
+                        if (selectableOptions[i].selected) {
+                            msOptions[selectableOptions[i].getAttribute('ms-index')].selected = true;
+                        } else {
+                            msOptions[selectableOptions[i].getAttribute('ms-index')].selected = false;
+                        }
+                    };
+                });
+                that.$selection.change(function() {
+                    var selectionOptions = that.$selection[0].options;
+                    var msOptions = ms[0].options;
+                    for (var i = 0, len = selectionOptions.length; i < len; i++) {
+                        if (selectionOptions[i].selected) {
+                            msOptions[selectionOptions[i].getAttribute('ms-index')].selected = false;
+                        } else {
+                            msOptions[selectionOptions[i].getAttribute('ms-index')].selected = true;
+                        }
+                    };
+                });
                 ms.on('focus',
                     function() {
                         that.$selectable.focus();
@@ -185,75 +180,88 @@
                 that.options.afterInit.call(that, that.$container);
             }
         },
-
         'generateLisFromOption': function() {
             var that = this,
                 options = that.$element[0].options,
                 selectableOptions = that.$selectable[0].options,
                 selectionOptions = that.$selection[0].options,
                 selectablefrag = document.createDocumentFragment(),
-                selectionfrag = document.createDocumentFragment();
+                selectionfrag = document.createDocumentFragment(),
+                selectablerowcache = [],
+                selectionrowcache = [],
+                selectedCount = 0;
+
             for (var i = 0, len = options.length; i < len; i++) {
                 var option = options[i];
+                var cloneOption = option.cloneNode(true);
+                cloneOption.setAttribute("ms-index", i);
                 if (option.selected) {
-                    selectionfrag.appendChild(option.cloneNode(true));
+                    selectionfrag.appendChild(cloneOption);
+                    selectionrowcache.push(option);
+                    selectedCount++;
                 } else {
-                    selectablefrag.appendChild(option.cloneNode(true));
+                    selectablefrag.appendChild(cloneOption);
+                    selectablerowcache.push(option);
                 }
             }
             that.$selectable.append(selectablefrag);
             that.$selection.append(selectionfrag);
+            that.selectablerowcache = selectablerowcache;
+            that.selectionrowcache = selectionrowcache;
+            if (selectedCount > 0) {
+                that.$input.attr('value', '已选中' + selectedCount + '项');
+            }
         },
+        'moveSelectedOption': function($fromSelection, $toSelection) {
+            var toSelection = $toSelection[0];
+            var fromSelection = $fromSelection[0];
+            var fromSelectionOptions = fromSelection.options;
+            var tofrag = document.createDocumentFragment();
+            var fromfrag = document.createDocumentFragment();
+            for (var i = 0, len = fromSelectionOptions.length; i < len; i++) {
+                var option = fromSelectionOptions[i];
+                if (option.selected) {
+                    //重新创建会快些
+                    tofrag.appendChild(option.cloneNode(true));
+                } else {
+                    fromfrag.appendChild(option.cloneNode(true));
+                }
+            };
+            toSelection.appendChild(tofrag);
+            //针对IE8下remove操作过慢的修正
+            $fromSelection.html('');
+            fromSelection.appendChild(fromfrag);
 
+            var msOptions = this.$element[0].options,
+                selectablerowcache = [],
+                selectionrowcache = [],
+                selectedCount = 0,
+                option;
+            for (var i = 0, len = msOptions.length; i < len; i++) {
+                option = msOptions[i]
+                if (option.selected) {
+                    selectionrowcache.push(option);
+                    selectedCount++;
+                } else {
+                    selectablerowcache.push(option);
+                };
+            };
+            this.selectablerowcache = selectablerowcache;
+            this.selectionrowcache = selectionrowcache;
+            if (selectedCount > 0) {
+                this.$input.attr('value', '已选中' + selectedCount + '项');
+            } else {
+                this.$input.attr('value', '');
+            }
+        },
         'select': function() {
-            var msOptions = this.$element[0].options,
-                selectedValues = moveSelection(this.$selectable, this.$selection),
-                selectablerowcache = [],
-                selectionrowcache = [],
-                selectedText = [],
-                option, value;
-            for (var i = 0, len = msOptions.length; i < len; i++) {
-                option = msOptions[i]
-                value = option.value;
-                if (jQuery.inArray(value, selectedValues) > -1) {
-                    option.selected = true;
-                }
-                if (option.selected) {
-                    selectionrowcache.push(option);
-                    selectedText.push(option.text);
-                } else {
-                    selectablerowcache.push(option);
-                };
-            };
-            this.selectablerowcache = selectablerowcache;
-            this.selectionrowcache = selectionrowcache;
-            this.$input.attr('value', selectedText.join(","));
+            this.moveSelectedOption(this.$selectable, this.$selection);
+
+
 
         },
-
         'deselect': function() {
-            var msOptions = this.$element[0].options,
-                selectedValues = moveSelection(this.$selection, this.$selectable),
-                selectablerowcache = [],
-                selectionrowcache = [],
-                selectedText = [],
-                option, value;
-            for (var i = 0, len = msOptions.length; i < len; i++) {
-                option = msOptions[i]
-                value = this.value;
-                if (jQuery.inArray(value, selectedValues) > -1) {
-                    option.selected = false;
-                }
-                if (option.selected) {
-                    selectionrowcache.push(option);
-                    selectedText.push(option.text);
-                } else {
-                    selectablerowcache.push(option);
-                };
-            };
-            this.selectablerowcache = selectablerowcache;
-            this.selectionrowcache = selectionrowcache;
-            this.$input.attr('value', selectedText.join(","));
+            this.moveSelectedOption(this.$selection, this.$selectable);
         }
     };
 
@@ -266,7 +274,6 @@
                 data = $this.data('multiselect'),
                 options = $.extend({},
                     $.fn.multiSelect.defaults, $this.data(), typeof option === 'object' && option);
-
             if (!data) {
                 $this.data('multiselect', (data = new MultiSelect(this, options)));
             }
@@ -292,6 +299,7 @@
         var that = this;
         var Options = that[0].options;
         window.clearTimeout(timeout);
+
         timeout = window.setTimeout(function() {
 
             var docfrag = document.createDocumentFragment();
@@ -309,34 +317,4 @@
 
     }
 
-    function moveSelection($fromSelection, $toSelection) {
-        var toSelection = $toSelection[0];
-        var fromSelection = $fromSelection[0];
-        var fromSelectionOptions = fromSelection.options;
-        var fromSelectionLentgh = fromSelectionOptions.length;
-        var selectedValues = [];
-        var tofrag = document.createDocumentFragment();
-        var fromfrag = document.createDocumentFragment();
-        for (var i = 0; i < fromSelectionLentgh; i++) {
-            var option = fromSelectionOptions[i];
-            if (option.selected) {
-                selectedValues.push(option.getAttribute('value'));
-                //重新创建会快些
-
-                tofrag.appendChild(option.cloneNode(true));
-                // fromSelection.removeChild(option);
-                // fromSelectionLentgh--;
-                // i--;
-
-            } else {
-                fromfrag.appendChild(option.cloneNode(true));
-            }
-        };
-        toSelection.appendChild(tofrag);
-        //针对IE8下remove操作过慢的修正
-        $fromSelection.html('');
-        fromSelection.appendChild(fromfrag);
-
-        return selectedValues;
-    }
 })(window.jQuery);
