@@ -5011,7 +5011,8 @@
 <script src="http://code.jquery.com/jquery-1.8.3.js"></script>
 <script src="jquery.Mselect.js"></script>	
 <script>
-	$($("#test-select").multiSelect());
+//这样写会快些
+	$.fn.ready($("#test-select").multiSelect());
 </script>
 </body>
 </html>
