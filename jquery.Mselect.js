@@ -23,9 +23,12 @@
     this.selectionOptionSercher = null;
     this.delayedTime = 300;
     this.searchedTimeoutID = null;
-    this.stubContainner = $('div', {});
-    this.$container = $('<div>', {
-      'class': 'ms-container'
+    this.$container = $('<div>');
+    this.$stubContainer = $('<div>', {
+      'style': 'position: relative;'
+    });
+    this.$dropdown = $('<div>', {
+      'class': 'ms-dropdown'
     });
     this.$input = $('<div>', {
       'class': 'ms-input'
@@ -79,8 +82,8 @@
 
       originSelect.style.display = 'none';
       multiSelect.build().registerListener();
-      multiSelect.$input.insertBefore(originSelect);
-      multiSelect.$container.appendTo('body');
+      multiSelect.$container.insertBefore(originSelect);
+      // multiSelect.$dropdown.appendTo('body');
 
       //multiselect控件的失去焦点事件
       $(document).on('mousedown.document',
@@ -88,8 +91,8 @@
           var element = e.srcElement || e.target,
             $target = $(element);
           //判断一下是否打开
-          if (!($target.is(multiSelect.$container) || $target.is(multiSelect.$container.find('*')) || $target.is(multiSelect.$input)) && multiSelect.$container.css('display') !== 'none') {
-            multiSelect.$container.hide();
+          if (!($target.is(multiSelect.$dropdown) || $target.is(multiSelect.$dropdown.find('*')) || $target.is(multiSelect.$input)) && multiSelect.$dropdown.css('display') !== 'none') {
+            multiSelect.$dropdown.hide();
           }
         });
 
@@ -120,8 +123,9 @@
       multiSelect.$selectionContainer.append(multiSelect.$selectionHeader, multiSelect.$selectionSelect);
       multiSelect.$insertButtonContainer.append(multiSelect.$insertButton);
       multiSelect.$removeButtonContainer.append(multiSelect.$removeButton);
-      multiSelect.$container.append(multiSelect.$selectableContainer, multiSelect.$insertButtonContainer, multiSelect.$removeButtonContainer, multiSelect.$selectionContainer);
-
+      multiSelect.$dropdown.append(multiSelect.$selectableContainer, multiSelect.$insertButtonContainer, multiSelect.$removeButtonContainer, multiSelect.$selectionContainer);
+      multiSelect.$stubContainer.append(multiSelect.$dropdown);
+      multiSelect.$container.append(multiSelect.$input, multiSelect.$stubContainer);
       return multiSelect;
     },
     'registerListener': function() {
@@ -129,13 +133,13 @@
 
       multiSelect.$input.on('click.input',
         function showContainer() {
-          //关的时候有闪烁   container.slideToggle(300);
-          var offset = multiSelect.$input.offset();
-          multiSelect.$container.css('display', 'block').css({
-            top: (offset.top + multiSelect.$input[0].offsetHeight) + 'px',
-            left: offset.left + 'px'
-          });
-          multiSelect.$container.show();
+          //关的时候有闪烁   dropdown.slideToggle(300);
+          // var offset = multiSelect.$input.offset();
+          // multiSelect.$dropdown.css('display', 'block').css({
+          //   top: (offset.top + multiSelect.$input[0].offsetHeight) + 'px',
+          //   left: offset.left + 'px'
+          // });
+          multiSelect.$dropdown.show();
         });
 
       multiSelect.$selectableHeader.on('keyup.selectableHeader',
