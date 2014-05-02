@@ -23,7 +23,9 @@
     this.selectionOptionSercher = null;
     this.delayedTime = 300;
     this.searchedTimeoutID = null;
-    this.$container = $('<div>');
+    this.$container = $('<div>', {
+      'style': 'display:block'
+    });
     this.$stubContainer = $('<div>', {
       'style': 'position: relative;'
     });
@@ -83,18 +85,21 @@
       originSelect.style.display = 'none';
       multiSelect.build().registerListener();
       multiSelect.$container.insertBefore(originSelect);
-      // multiSelect.$dropdown.appendTo('body');
 
       //multiselect控件的失去焦点事件
-      $(document).on('mousedown.document',
-        function(e) {
-          var element = e.srcElement || e.target,
-            $target = $(element);
+      $(document).on('click.document',
+        function() {
+          // var element = e.srcElement || e.target,
+          //   $target = $(element);
           //判断一下是否打开
-          if (!($target.is(multiSelect.$dropdown) || $target.is(multiSelect.$dropdown.find('*')) || $target.is(multiSelect.$input)) && multiSelect.$dropdown.css('display') !== 'none') {
-            multiSelect.$dropdown.hide();
-          }
+          // if (!($target.is(multiSelect.$dropdown) || $target.is(multiSelect.$dropdown.find('*')) || $target.is(multiSelect.$input)) && multiSelect.$dropdown.css('display') !== 'none') {
+          multiSelect.$dropdown.hide();
+
+          // }
         });
+      multiSelect.$stubContainer.on('click', function(event) {
+        event.stopPropagation();
+      });
 
     },
     'build': function() {
@@ -132,14 +137,10 @@
       var multiSelect = this;
 
       multiSelect.$input.on('click.input',
-        function showContainer() {
+        function showDropdown(event) {
           //关的时候有闪烁   dropdown.slideToggle(300);
-          // var offset = multiSelect.$input.offset();
-          // multiSelect.$dropdown.css('display', 'block').css({
-          //   top: (offset.top + multiSelect.$input[0].offsetHeight) + 'px',
-          //   left: offset.left + 'px'
-          // });
           multiSelect.$dropdown.show();
+          event.stopPropagation();
         });
 
       multiSelect.$selectableHeader.on('keyup.selectableHeader',
