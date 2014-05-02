@@ -23,6 +23,7 @@
     this.selectionOptionSercher = null;
     this.delayedTime = 300;
     this.searchedTimeoutID = null;
+    this.stubContainner = $('div', {});
     this.$container = $('<div>', {
       'class': 'ms-container'
     });
@@ -77,7 +78,7 @@
         originSelect = this.originSelect;
 
       originSelect.style.display = 'none';
-      multiSelect.buildContainer().refreshInput().refreshOptionCache().registerListener();
+      multiSelect.build().registerListener();
       multiSelect.$input.insertBefore(originSelect);
       multiSelect.$container.appendTo('body');
 
@@ -93,92 +94,35 @@
         });
 
     },
-    'buildContainer': function() {
-      var multiSelect = this;
-      multiSelect.buildOptionsFrom(multiSelect.originSelect)
-        .buildSelectableContainer()
-        .buildSelectionContainer();
-      multiSelect.$insertButtonContainer.append(multiSelect.$insertButton);
-      multiSelect.$removeButtonContainer.append(multiSelect.$removeButton);
-      multiSelect.$container.append(multiSelect.$selectableContainer, multiSelect.$insertButtonContainer, multiSelect.$removeButtonContainer, multiSelect.$selectionContainer);
-
-      return multiSelect;
-    },
-    'buildOptionsFrom': function(originSelect) {
+    'build': function() {
       var multiSelect = this,
-        options = originSelect.options,
+        selectedCount = 0,
         selectablefrag = document.createDocumentFragment(),
         selectionfrag = document.createDocumentFragment();
 
-      for (var i = 0, len = options.length; i < len; i++) {
-        var option = options[i];
+      for (var i = 0, len = this.originSelect.length; i < len; i++) {
+        var option = this.originSelect[i];
         option.setAttribute('ms-index', i);
         var cloneOption = option.cloneNode(true);
         if (option.selected) {
           selectionfrag.appendChild(cloneOption);
           multiSelect.selectionOptionCache.push(option);
+          selectedCount++;
         } else {
           selectablefrag.appendChild(cloneOption);
           multiSelect.selectableOptionCache.push(option);
         }
       }
+      multiSelect.$input.text('已选中' + selectedCount + '项');
       multiSelect.$selectableSelect.append(selectablefrag);
       multiSelect.$selectionSelect.append(selectionfrag);
-
-      return multiSelect;
-    },
-    'buildSelectableContainer': function() {
-      var multiSelect = this;
       multiSelect.$selectableContainer.append(multiSelect.$selectableHeader, multiSelect.$selectableSelect);
-      return multiSelect;
-    },
-    'buildSelectionContainer': function() {
-      var multiSelect = this;
       multiSelect.$selectionContainer.append(multiSelect.$selectionHeader, multiSelect.$selectionSelect);
-      return multiSelect;
-    },
-    'refreshOptionCache': function() {
-      var multiSelect = this;
-      var originSelect = multiSelect.originSelect;
-      var selectableOptionCache = [];
-      var selectionOptionCache = [];
-      //只有这种方案了，保存cache的顺序成本太高
-      for (var i = 0, len = originSelect.length; i < len; i++) {
-        var cacheOption = originSelect[i];
-        if (cacheOption.selected) {
-          selectionOptionCache.push(cacheOption);
-        } else {
-          selectableOptionCache.push(cacheOption);
-        }
+      multiSelect.$insertButtonContainer.append(multiSelect.$insertButton);
+      multiSelect.$removeButtonContainer.append(multiSelect.$removeButton);
+      multiSelect.$container.append(multiSelect.$selectableContainer, multiSelect.$insertButtonContainer, multiSelect.$removeButtonContainer, multiSelect.$selectionContainer);
 
-      }
-      multiSelect.selectionOptionCache = selectionOptionCache;
-      multiSelect.selectableOptionCache = selectableOptionCache;
       return multiSelect;
-    },
-    'refreshInput': function() {
-      var multiSelect = this;
-      multiSelect.$input.text('已选中' + multiSelect.$selectionSelect[0].options.length + '项');
-      return multiSelect;
-    },
-    'search': function(targetOptions, queryString) {
-      var matchedOptions = document.createDocumentFragment();
-      var queryList = queryString.toLowerCase().split(' '),
-        isEmpty = (queryList.length === 0);
-      for (var i = 0, len = targetOptions.length; i < len; i++) {
-        if (isEmpty || this.isMatched(queryList, targetOptions[i].text.toLowerCase())) {
-          matchedOptions.appendChild(targetOptions[i].cloneNode(true));
-        } else {}
-      }
-      return matchedOptions;
-    },
-    'isMatched': function(queryList, targetText) {
-      for (var i = 0, len = queryList.length; i < len; i++) {
-        if (targetText.indexOf(queryList[i]) === -1) {
-          return false;
-        }
-      }
-      return true;
     },
     'registerListener': function() {
       var multiSelect = this;
@@ -199,7 +143,7 @@
           var queryString = this.value;
           var selectableSelect = multiSelect.$selectableSelect[0];
 
-          window.clearTimeout(multiSelect.searchedTimeoutID);
+          multiSelect.cancelTimeout();
 
           multiSelect.searchedTimeoutID = window.setTimeout(function() {
             var matchedOptions = multiSelect.search(multiSelect.selectableOptionCache, queryString);
@@ -214,7 +158,7 @@
           var queryString = this.value;
           var selectionSelect = multiSelect.$selectionSelect[0];
 
-          window.clearTimeout(multiSelect.searchedTimeoutID);
+          multiSelect.cancelTimeout();
 
           multiSelect.searchedTimeoutID = window.setTimeout(function() {
             var matchedOptions = multiSelect.search(multiSelect.selectionOptionCache, queryString);
@@ -223,59 +167,84 @@
           }, multiSelect.delayedTime);
         });
 
-      multiSelect.$selectableSelect.on({
-        //双击和点选择按钮的事件区分开来
-        'dblclick.selectableSelect': $.proxy(multiSelect.select, multiSelect),
-        'change.selectableSelect': function() {
-          var selectableOptions = multiSelect.$selectableSelect[0].options;
-          var msOptions = multiSelect.originSelect.options;
-          for (var i = 0, len = selectableOptions.length; i < len; i++) {
-            if (selectableOptions[i].selected) {
-              msOptions[selectableOptions[i].getAttribute('ms-index')].selected = true;
-            } else {
-              msOptions[selectableOptions[i].getAttribute('ms-index')].selected = false;
-            }
-          }
+      multiSelect.$selectableSelect.on('dblclick.selectableSelect',
+        function selectSingleOption() {
+          multiSelect.moveSingleOption(multiSelect.$selectableSelect, multiSelect.$selectionSelect, true);
+          multiSelect.update();
         }
-      });
-      
-      multiSelect.$selectionSelect.on({
-        'dblclick.selectionSelect': $.proxy(multiSelect.deselect, multiSelect),
-        'change.selectionSelect': function() {
-          var selectionOptions = multiSelect.$selectionSelect[0].options;
-          var msOptions = multiSelect.originSelect.options;
-          for (var i = 0, len = selectionOptions.length; i < len; i++) {
-            if (selectionOptions[i].selected) {
-              msOptions[selectionOptions[i].getAttribute('ms-index')].selected = false;
-            } else {
-              msOptions[selectionOptions[i].getAttribute('ms-index')].selected = true;
-            }
-          }
+      );
+
+      multiSelect.$selectionSelect.on('dblclick.selectionSelect',
+        function deselectSingleOption() {
+          multiSelect.moveSingleOption(multiSelect.$selectionSelect, multiSelect.$selectableSelect, false);
+          multiSelect.update();
         }
-      });
-      multiSelect.$insertButton.on('click.insertButton',$.proxy(multiSelect.select, multiSelect));
-      multiSelect.$removeButton.on('click.removeButton',$.proxy(multiSelect.deselect, multiSelect));
+      );
+
+      multiSelect.$insertButton.on('click.insertButton',
+        function selectOptions() {
+          multiSelect.moveSelectedOptions(multiSelect.$selectableSelect, multiSelect.$selectionSelect, true);
+          multiSelect.update();
+        });
+
+      multiSelect.$removeButton.on('click.removeButton',
+        function deselectOptions() {
+          multiSelect.moveSelectedOptions(multiSelect.$selectionSelect, multiSelect.$selectableSelect, false);
+          multiSelect.update();
+        });
     },
-    'select': function() {
-      this.moveSelectedOption(this.$selectableSelect, this.$selectionSelect);
-      this.refreshInput().refreshOptionCache();
+    'cancelTimeout': function() {
+      window.clearTimeout(this.searchedTimeoutID);
     },
-    'deselect': function() {
-      this.moveSelectedOption(this.$selectionSelect, this.$selectableSelect);
-      this.refreshInput().refreshOptionCache();
+    'search': function(targetOptions, queryString) {
+      var matchedOptions = document.createDocumentFragment();
+      var queryList = queryString.toLowerCase().split(' '),
+        isEmpty = (queryList.length === 0);
+      for (var i = 0, len = targetOptions.length; i < len; i++) {
+        if (isEmpty || this.isMatched(queryList, targetOptions[i].text.toLowerCase())) {
+          matchedOptions.appendChild(targetOptions[i].cloneNode(true));
+        } else {}
+      }
+      return matchedOptions;
     },
-    'moveSelectedOption': function($fromSelect, $toSelect) {
-      var toSelect = $toSelect[0];
+    'isMatched': function(queryList, targetText) {
+      for (var i = 0, len = queryList.length; i < len; i++) {
+        if (targetText.indexOf(queryList[i]) === -1) {
+          return false;
+        }
+      }
+      return true;
+    },
+    'moveSingleOption': function($fromSelect, $toSelect, isSelected) {
       var fromSelect = $fromSelect[0];
+      var toSelect = $toSelect[0];
+      var fromSelectOptions = fromSelect.options;
+      var i = fromSelectOptions.length;
+
+      while (i--) {
+        var option = fromSelectOptions[i];
+        if (option.selected) {
+          option.selected = false;
+          toSelect.appendChild(option);
+          this.originSelect[option.getAttribute('ms-index')].selected = isSelected;
+          return;
+        }
+      }
+    },
+    'moveSelectedOptions': function($fromSelect, $toSelect, isSelected) {
+      var fromSelect = $fromSelect[0];
+      var toSelect = $toSelect[0];
       var fromSelectOptions = fromSelect.options;
       var tofrag = document.createDocumentFragment();
       var fromfrag = document.createDocumentFragment();
+
       for (var i = 0, len = fromSelectOptions.length; i < len; i++) {
         var option = fromSelectOptions[i];
         var cloneOption = option.cloneNode(true);
         if (option.selected) {
           //重新创建会快些
           tofrag.appendChild(cloneOption);
+          this.originSelect[option.getAttribute('ms-index')].selected = isSelected;
         } else {
           fromfrag.appendChild(cloneOption);
         }
@@ -284,7 +253,26 @@
       fromSelect.innerHTML = '';
       fromSelect.appendChild(fromfrag);
       toSelect.appendChild(tofrag);
+    },
+    'update': function() {
+      var selectableOptionCache = [];
+      var selectionOptionCache = [];
+      var selectedCount = 0;
+      //只有这种方案了，保存cache的顺序成本太高
+      for (var i = 0, len = this.originSelect.length; i < len; i++) {
+        var option = this.originSelect[i];
+        if (option.selected) {
+          selectionOptionCache.push(option);
+          selectedCount++;
+        } else {
+          selectableOptionCache.push(option);
+        }
 
+      }
+
+      this.$input.text('已选中' + selectedCount + '项');
+      this.selectionOptionCache = selectionOptionCache;
+      this.selectableOptionCache = selectableOptionCache;
     }
   };
   $.fn.multiSelect = function() {
@@ -293,6 +281,4 @@
       mSelect.init();
     });
   };
-
-
 })(jQuery, window);
